@@ -5,13 +5,13 @@
 # DEFINE Predicates
 #
 
-PREFERENCE="preference"       # arity 2 and 5
-OPTIMIZE="optimize"           # arity 1
-HOLDS="holds"                 # arity 2
-SAT="sat"                     # arity 1
-BF="bf"                       # arity 1
-DOM="dom"                     # arity 1
-PREFERENCE_DOM="pref_dom"     # arity 1
+PREFERENCE     = "preference" # arity 2 and 5
+OPTIMIZE       = "optimize"   # arity 1
+HOLDS          = "holds"      # arity 2
+SAT            = "sat"        # arity 1
+BF             = "bf"         # arity 1
+DOM            = "dom"        # arity 1
+PREFERENCE_DOM = "pref_dom"   # arity 1
 
 
 
@@ -67,15 +67,13 @@ def ast2str(ast):
 
 
 # Translate body to string
-def body2str(body):
+def body2str(i):
     out = ""
-    if body == None:         return out
-    if isinstance(body,str): return body
-    for i in body:
-        if isinstance(i,list)   and len(i)>0 and \
-           isinstance(i[0],str) and i[0] in { "atom", "true", "false", "cmp" }:
-            out += ast2str(i[1])
-        else: out += body2str(i)
+    if isinstance(i,list) and len(i) > 0:
+        if isinstance(i[0],str) and i[0] in { "atom", "true", "false", "cmp" }:
+            return ast2str(i[1])
+        for j in i:
+            out += body2str(j)
     return out
 
 
@@ -118,6 +116,15 @@ class PStatement(Statement):
         if bodyp!="" and bodyn!="": return bodyp + ", " + bodyn
         return bodyp + bodyn
 
+    def __create_body(self,element):
+        u = Statement.underscores
+        out = []
+        for j in element.sets:
+            for k in j:
+                out += k.get_atoms()
+        for k in element.cond:
+            out += k.get_atoms()
+        return ", ".join(u+DOM+"("+i+")" for i in out)
 
 
     def str(self):
@@ -130,9 +137,9 @@ class PStatement(Statement):
         type = ast2str(self.type)
 
         # pref/2
-        body = ast2str(self.body) if self.body is not None else ""
-        if body!="": body = " :- " + body
-        out = u + PREFERENCE + "({},{}){}.\n".format(name,type,body)
+        statement_body = body2str(self.body) if self.body is not None else ""
+        arrow = " :- " if statement_body != "" else ""
+        out = u + PREFERENCE + "({},{}){}{}.\n".format(name,type,arrow,statement_body)
 
         # pref/5
         elem = 1
@@ -142,11 +149,12 @@ class PStatement(Statement):
 
             # body
             if i.body is not None:    body = body2str(i.body)
-            else:                     body = self.__create_body(i.preds,i.names)
-            if self.body is not None and self.body is not "":
-                if body !="": body += ", "
-                body += ast2str(self.body)
-            arrow = " :- " if body!="" else ""
+            else:                     body = self.__create_body(i)
+            #else:                     body = self.__create_body(i.preds,i.names)
+            if statement_body != "":
+                if body != "": body += ", "
+                body += statement_body
+            arrow = " :- " if body != "" else ""
 
             # head sets
             for j in i.sets:
@@ -190,6 +198,7 @@ class Element:
         self.body  = None
         self.sets  = []
         self.cond  = []
+        self.all_vars  = set() # temporary variable
 
 
 
@@ -212,10 +221,12 @@ class WBody:
         self.analyzed           = False
 
 
+
+
     def __translate_ext_atom(self,atom):
-        if atom[0] == ["true"]:
+        if atom[0] == "true":
             return ATOM+"("+Statement.underscores+TRUE+")", Statement.underscores+TRUE
-        elif atom[0] == ["false"]:
+        elif atom[0] == "false":
             return ATOM+"("+Statement.underscores+FALSE+")", Statement.underscores+FALSE
         elif atom[0] == "atom":
             return ATOM+"("+ast2str(atom[1])+")", ast2str(atom[1])
@@ -320,4 +331,28 @@ class WBody:
         if len(self.ext_atoms_in_bf) == 0: return ""
         if body != "": body = ", " + body
         return "\n".join([Statement.underscores + SAT + "(" + x[0] + ") :- " + x[1] + body + "." for x in self.ext_atoms_in_bf]) + "\n"
+
+
+    #
+    # OTHERS
+    #
+
+
+    def __get_atoms_from_bf(self,bf):
+        if bf[0] == "ext_atom":
+            return [ast2str(bf[1][1])] if bf[1][0] == "atom" else []
+        elif bf[0] == "and" or bf[0] == "or":
+            return self.__get_atoms_from_bf(bf[1][0]) + self.__get_atoms_from_bf(bf[1][1])
+        elif bf[0] == "neg":
+            return self.__get_atoms_from_bf(bf[1][0])
+
+
+    # return the atoms in the body as a list of strings (called before str_ functions)
+    def get_atoms(self):
+        out = []
+        for i in self.body:
+            out += self.__get_atoms_from_bf(i)
+        return out
+
+
 

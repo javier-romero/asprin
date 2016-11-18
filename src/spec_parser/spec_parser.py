@@ -232,6 +232,8 @@ class Parser(object):
             p[0] = (p[1],[])
         else:
             p[0] = (p[1],p[3])
+        self.element.vars     = self.element.all_vars
+        self.element.all_vars = set()
 
     def p_elem_head(self,p):
         """ elem_head : elem_head GTGT weighted_body_set
@@ -273,7 +275,7 @@ class Parser(object):
     def p_weighted_body_2(self,p):
         """ weighted_body :            TWO_COLON
         """
-        p[0] = ast.WBody(None,[("ext_atom",["true"])])
+        p[0] = ast.WBody(None,[("ext_atom",["true",["#true"]])])
 
     def p_weighted_body_3(self,p):
         """ weighted_body : ntermvec_x TWO_COLON bfvec_x
@@ -288,7 +290,7 @@ class Parser(object):
     def p_weighted_body_5(self,p):
         """ weighted_body : ntermvec_x TWO_COLON
         """
-        p[0] = ast.WBody(p[1],[("ext_atom",["true"])])
+        p[0] = ast.WBody(p[1],[("ext_atom",["true",["#true"]])])
 
     def p_weighted_body_6(self,p):
         """ weighted_body :                      POW_NO_WS naming_atom
@@ -414,7 +416,7 @@ class Parser(object):
     def p_bformula_1(self,p):
         """ bformula :               ext_atom
         """
-        p[0] = ("ext_atom",p[1])
+        p[0] = p[1]
 
     def p_bformula_2(self,p):
         """ bformula :            csp_literal
@@ -458,7 +460,7 @@ class Parser(object):
     def p_na_bformula_1(self,p):
         """ na_bformula :            na_ext_atom
         """
-        p[0] = ("ext_atom",p[1])
+        p[0] = p[1]
 
     def p_na_bformula_2(self,p):
         """ na_bformula :            csp_literal
@@ -540,22 +542,22 @@ class Parser(object):
     def p_ext_atom_1(self,p):
         """ ext_atom : TRUE
         """
-        p[0] = ["true",["#true"]]
+        p[0] = ["ext_atom",["true",["#true"]]]
 
     def p_ext_atom_2(self,p):
         """ ext_atom : FALSE
         """
-        p[0] = ["false",["#false"]]
+        p[0] = ["ext_atom",["false",["#false"]]]
 
     def p_ext_atom_3(self,p):
         """ ext_atom : atom
         """
-        p[0] = ["atom",p[1]]
+        p[0] = ["ext_atom",["atom",p[1]]]
 
     def p_ext_atom_4(self,p):
         """ ext_atom : term cmp term
         """
-        p[0] = ["cmp",p[1:]]
+        p[0] = ["ext_atom",["cmp",p[1:]]]
 
 
     #   """ na_ext_atom : TRUE
@@ -565,17 +567,17 @@ class Parser(object):
     def p_na_ext_atom_1(self,p):
         """ na_ext_atom : TRUE
         """
-        p[0] = ["true",["#true"]]
+        p[0] = ["ext_atom",["true",["#true"]]]
 
     def p_na_ext_atom_2(self,p):
         """ na_ext_atom : FALSE
         """
-        p[0] = ["false",["#false"]]
+        p[0] = ["ext_atom",["false",["#false"]]]
 
     def p_na_ext_atom_3(self,p):
         """ na_ext_atom : term cmp term
         """
-        p[0] = ["cmp",p[1:]]
+        p[0] = ["ext_atom",["cmp",p[1:]]]
 
 
     #
@@ -585,7 +587,7 @@ class Parser(object):
         """ variable : VARIABLE
         """
         p[0] = p[1]
-        self.element.vars.add(p[1])
+        self.element.all_vars.add(p[1])
 
     #
     # GRINGO expressions
